@@ -1,49 +1,51 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import type { Database } from '../lib/supabase'
+import { useState, useEffect, useCallback } from 'react';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
-type TeamMember = Database['public']['Tables']['team_members']['Row']
+// Define the structure of a Team Member object
+export interface TeamMember {
+    id: string;
+    name: string;
+    role: string;
+    imageUrl: string;
+    socialLink: string;
+}
 
 export const useTeamMembers = () => {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  const fetchTeamMembers = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('*')
-        .order('created_at', { ascending: true })
+    const fetchTeamMembers = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const q = query(collection(db, 'teamMembers'), orderBy('createdAt', 'asc'));
+            const querySnapshot = await getDocs(q);
+            
+            const membersData = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    name: data.name || 'No Name',
+                    role: data.role || 'No Role',
+                    imageUrl: data.imageUrl || '',
+                    socialLink: data.socialLink || '#',
+                } as TeamMember;
+            });
 
-      if (error) throw error
-      setTeamMembers(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchTeamMembers()
-
-    // Subscribe to real-time changes
-    const subscription = supabase
-      .channel('team_members')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'team_members' },
-        () => {
-          fetchTeamMembers()
+            setTeamMembers(membersData);
+        } catch (err) {
+            console.error("Error fetching team members: ", err);
+            setError('Failed to load team members.');
+        } finally {
+            setLoading(false);
         }
-      )
-      .subscribe()
+    }, []);
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+    useEffect(() => {
+        fetchTeamMembers();
+    }, [fetchTeamMembers]);
 
-  return { teamMembers, loading, error, refetch: fetchTeamMembers }
-}
+    return { teamMembers, loading, error, refetch: fetchTeamMembers };
+};
