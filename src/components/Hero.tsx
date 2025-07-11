@@ -46,9 +46,7 @@ const Hero: React.FC<HeroProps> = ({ setCurrentSection }) => {
               Explore Opportunities
               <ChevronRight className="h-5 w-5" />
             </button>
-            <button className="border-2 border-white text-white hover:bg-white hover:text-blue-800 px-8 py-3 rounded-lg font-semibold btn-3d glass-effect">
-              Learn More
-            </button>
+            
           </div>
         </div>
 

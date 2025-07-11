@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Clock, Filter, Search, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { useOpportunities } from '../hooks/useOpportunities';
+import { Calendar, MapPin, IndianRupee, Briefcase, Search, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useOpportunities, Opportunity } from '../hooks/useOpportunities';
+import { useAuth } from '../contexts/AuthContext';
 
 const Opportunities: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { opportunities, loading, error, refetch } = useOpportunities();
+  const { user, signIn } = useAuth();
 
   const categories = [
     { id: 'all', label: 'All Opportunities' },
@@ -20,12 +22,28 @@ const Opportunities: React.FC = () => {
   const filteredOpportunities = opportunities.filter(opportunity => {
     const matchesCategory = selectedCategory === 'all' || opportunity.type === selectedCategory;
     const matchesSearch = opportunity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         opportunity.company.toLowerCase().includes(searchTerm.toLowerCase());
+                          opportunity.company.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const getStatusBadge = (status: string) => {
-    return status === 'open' ? (
+  // FIXED: This function now checks the deadline automatically
+  const getStatusBadge = (opportunity: Opportunity) => {
+    const today = new Date();
+    // Set hours to 0 to compare dates only, not time
+    today.setHours(0, 0, 0, 0); 
+    const deadline = new Date(opportunity.deadline);
+
+    // If deadline has passed, it's closed.
+    if (deadline < today) {
+      return (
+        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+          Closed
+        </span>
+      );
+    }
+    
+    // Otherwise, use the status from the database
+    return opportunity.status === 'open' ? (
       <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
         Open
       </span>
@@ -37,7 +55,7 @@ const Opportunities: React.FC = () => {
   };
 
   return (
-    <section className="py-16 bg-white">
+    <section id="opportunities" className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Latest Opportunities</h2>
@@ -117,57 +135,79 @@ const Opportunities: React.FC = () => {
         {/* Opportunities Grid */}
         {!loading && !error && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 perspective-container">
-          {filteredOpportunities.map((opportunity) => (
-            <div key={opportunity.id} className="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-3d slide-in-up">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full pulse-glow">
-                    {opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}
-                  </span>
-                  {getStatusBadge(opportunity.status)}
-                </div>
-                
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{opportunity.title}</h3>
-                <p className="text-gray-600 mb-4">{opportunity.company}</p>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {opportunity.location}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Deadline: {new Date(opportunity.deadline).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="h-4 w-4 mr-2" />
-                    {opportunity.stipend}
-                  </div>
-                </div>
+          {filteredOpportunities.map((opportunity: Opportunity) => {
+            // FIXED: Check if the deadline has passed to disable the button
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const isPastDeadline = new Date(opportunity.deadline) < today;
+            const isClosed = opportunity.status === 'closed' || isPastDeadline;
 
-                <p className="text-gray-600 text-sm mb-4">{opportunity.description}</p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {opportunity.requirements.map((req, index) => (
-                    <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                      {req}
+            return (
+              <div key={opportunity.id} className="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-3d slide-in-up">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full pulse-glow">
+                      {opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}
                     </span>
-                  ))}
-                </div>
+                    {/* FIXED: Pass the whole opportunity object to the function */}
+                    {getStatusBadge(opportunity)}
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{opportunity.title}</h3>
+                  
+                  <div className="flex items-center text-gray-600 mb-4">
+                      <Briefcase className="h-4 w-4 mr-2" />
+                      {opportunity.company}
+                  </div>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {opportunity.location}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Deadline: {new Date(opportunity.deadline).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <IndianRupee className="h-4 w-4 mr-2" />
+                      {opportunity.stipend}
+                    </div>
+                  </div>
 
-                <button 
-                  className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                    opportunity.status === 'open'
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                  disabled={opportunity.status === 'closed'}
-                >
-                  {opportunity.status === 'open' ? 'Apply Now' : 'Application Closed'}
-                </button>
+                  <p className="text-gray-600 text-sm mb-4">{opportunity.description}</p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {opportunity.requirements.map((req, index) => (
+                      <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                        {req}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      if (!user) {
+                        alert('Please sign in to apply for this opportunity.');
+                        signIn();
+                      } else if (!isClosed && opportunity.link) {
+                        window.open(opportunity.link, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
+                      !isClosed
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    disabled={isClosed}
+                  >
+                    {!user && !isClosed ? 'Sign In to Apply' : 
+                    (!isClosed ? 'Apply Now' : 'Application Closed')}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         )}
 

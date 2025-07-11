@@ -1,123 +1,98 @@
 import React from 'react';
-import { Mail, Linkedin, MapPin, Instagram, FileText, Users, Loader2, AlertCircle } from 'lucide-react';
-import { useTeamMembers } from '../hooks/useTeamMembers';
+import { Linkedin, Loader2, AlertCircle } from 'lucide-react';
+import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
 
 const Team: React.FC = () => {
   const { teamMembers, loading, error } = useTeamMembers();
 
+  // Group team members by their role
+  const groupedMembers = teamMembers.reduce((acc, member) => {
+    const role = member.role;
+    if (!acc[role]) {
+      acc[role] = [];
+    }
+    acc[role].push(member);
+    return acc;
+  }, {} as Record<string, TeamMember[]>);
+
+  // Define the order of roles to display
+  const roleOrder = [
+    'Founder',
+    'Technical Support Team',
+    'Content Creator Team',
+    'Broadcasting Team',
+    'Mentor',
+    'Social Media Marketing Team'
+  ];
+
   return (
-    <section className="py-16 bg-gray-50">
+    <section id="team" className="py-20 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Meet Our Team</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Meet the dedicated team members of OUR KANDUKUR community who are committed to empowering students and creating opportunities.
+          <h2 className="text-4xl font-extrabold text-gray-900">Meet Our Team</h2>
+          <p className="mt-4 text-xl text-gray-600">
+            The passionate individuals dedicated to empowering our community.
           </p>
         </div>
 
-        {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading team members...</span>
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
           </div>
         )}
 
-        {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-              <span className="text-red-800">Error loading team members: {error}</span>
-            </div>
+          <div className="text-center text-red-600 bg-red-50 p-6 rounded-lg">
+            <AlertCircle className="mx-auto h-8 w-8" />
+            <p className="mt-2">{error}</p>
           </div>
         )}
 
-        {/* Team Members */}
+        {/* This block handles the main display */}
         {!loading && !error && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 perspective-container">
-          {teamMembers.map((member) => (
-            <div key={member.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 card-3d slide-in-up">
-              <div className="text-center mb-6">
-                <div className="bg-blue-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 float-animation pulse-glow">
-                  <Users className="h-10 w-10 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">{member.name}</h3>
-                <p className="text-blue-600 font-semibold">{member.role}</p>
+          <>
+            {/* FIXED: Add a check for when there are no members */}
+            {teamMembers.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">Our team is growing! Check back soon to meet our members.</p>
               </div>
-              
-              {/* Contact Details */}
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-3 text-gray-400" />
-                  {member.location}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="h-4 w-4 mr-3 text-gray-400" />
-                  <a href={`mailto:${member.email}`} className="hover:text-blue-600">
-                    {member.email}
-                  </a>
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <span className="h-4 w-4 mr-3 text-gray-400">📞</span>
-                  <a href={`tel:${member.phone}`} className="hover:text-blue-600 transition-colors">
-                    {member.phone}
-                  </a>
-                </div>
+            ) : (
+              <div className="space-y-16">
+                {roleOrder.map(role => (
+                  groupedMembers[role] && (
+                    <div key={role}>
+                      <h3 className="text-3xl font-bold text-gray-800 mb-8 border-l-4 border-blue-600 pl-4">
+                        {role}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                        {groupedMembers[role].map((member) => (
+                          <div key={member.id} className="text-center bg-white p-6 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300">
+                            <img
+                              className="w-32 h-32 mx-auto rounded-full object-cover mb-4 border-4 border-gray-200"
+                              src={member.imageUrl}
+                              alt={member.name}
+                              onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${member.name}&background=random` }}
+                            />
+                            <h4 className="text-xl font-semibold text-gray-900">{member.name}</h4>
+                            <a
+                              href={member.socialLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 transition-colors mt-2 inline-block"
+                              aria-label={`LinkedIn profile of ${member.name}`}
+                            >
+                              <Linkedin className="h-6 w-6" />
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ))}
               </div>
-
-              {/* Social Media & Resume */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="flex space-x-3">
-                  <a
-                    href={member.linkedin}
-                    className="text-gray-400 hover:text-blue-600 transition-colors"
-                    title="LinkedIn"
-                  >
-                    <Linkedin className="h-5 w-5" />
-                  </a>
-                  <a
-                    href={member.instagram}
-                    className="text-gray-400 hover:text-pink-600 transition-colors"
-                    title="Instagram"
-                  >
-                    <Instagram className="h-5 w-5" />
-                  </a>
-                  {member.resume_url && (
-                    <a
-                      href={member.resume_url}
-                      className="text-gray-400 hover:text-green-600 transition-colors"
-                      title="Download Resume"
-                    >
-                      <FileText className="h-5 w-5" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </>
         )}
-
-        {/* Join Our Team CTA */}
-        <div className="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-center text-white">
-          <div className="max-w-3xl mx-auto">
-            <Users className="h-12 w-12 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold mb-4">Join Our Growing Team</h2>
-            <p className="text-xl mb-6">
-              Want to be part of OUR KANDUKUR community? We're always looking for passionate individuals to join our team.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                Join Our Team
-              </button>
-              <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors">
-                Contact Us
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );
