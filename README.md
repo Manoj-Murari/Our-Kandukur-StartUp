@@ -57,26 +57,6 @@ npm install
 npm run dev
 ```
 
-## Content Management
-
-### Adding New Opportunities
-```sql
-INSERT INTO opportunities (title, company, location, type, deadline, description, requirements, stipend)
-VALUES ('Your Title', 'Company Name', 'Location', 'internships', '2024-03-01', 'Description', ARRAY['Skill1', 'Skill2'], 'Stipend');
-```
-
-### Adding Announcements
-```sql
-INSERT INTO announcements (title, content, type, priority, expires_at)
-VALUES ('Title', 'Content', 'featured', 'high', '2024-03-01 23:59:59');
-```
-
-### Managing Team Members
-```sql
-INSERT INTO team_members (name, role, location, phone, email, linkedin, instagram, resume_url)
-VALUES ('Name', 'Role', 'Location', 'Phone', 'Email', 'LinkedIn URL', 'Instagram URL', 'Resume URL');
-```
-
 ## Daily Updates Workflow
 
 1. **Morning**: Add new opportunities and announcements
