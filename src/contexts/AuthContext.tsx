@@ -3,22 +3,36 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut as fir
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
-// Define the shape of our custom user profile data
 export interface UserProfile {
-    uid: string;
-    email: string;
-    name: string;
-    photoURL: string;
-    role: 'jobseeker' | 'recruiter' | 'admin'; // Add the role field
-    location?: string;
-    phone?: string;
-    academics?: string;
+    uid: string; email: string; name: string; photoURL: string; role: 'jobseeker' | 'recruiter' | 'admin';
+    location?: string; phone?: string; gender?: string; dob?: string; linkedinUrl?: string; githubUrl?: string;
+    qualification?: string; otherQualification?: string; stream?: string; otherStream?: string;
+    branch?: string; otherBranch?: string; institutionName?: string; educationStatus?: string;
 }
+
+// New function to check if a profile is complete
+const isProfileComplete = (profile: UserProfile | null): boolean => {
+    if (!profile) return false;
+    // Check for essential personal and academic details
+    const requiredFields: (keyof UserProfile)[] = [
+        'name', 'phone', 'location', 'dob', 'gender', 
+        'institutionName', 'educationStatus', 'qualification'
+    ];
+    for (const field of requiredFields) {
+        if (!profile[field]) return false;
+    }
+    // Handle "Other" cases
+    if (profile.qualification === 'Other' && !profile.otherQualification) return false;
+    if (profile.stream === 'Other' && !profile.otherStream) return false;
+    if (profile.branch === 'Other' && !profile.otherBranch) return false;
+    return true;
+};
 
 interface AuthContextType {
     user: User | null;
     userProfile: UserProfile | null;
     loading: boolean;
+    isProfileComplete: boolean; // Add this to the context
     signIn: () => Promise<void>;
     signOut: () => Promise<void>;
 }
@@ -27,9 +41,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 };
 
@@ -44,26 +56,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (currentUser) {
                 const userRef = doc(db, 'users', currentUser.uid);
                 const docSnap = await getDoc(userRef);
-
                 if (docSnap.exists()) {
-                    // User profile exists, load it
                     const userProfileData = docSnap.data() as UserProfile;
-                    
-                    // FIXED: Check if the existing profile is missing a role. If so, add it.
                     if (!userProfileData.role) {
-                        userProfileData.role = 'jobseeker'; // Assign default role
-                        await setDoc(userRef, { role: 'jobseeker' }, { merge: true }); // Merge to avoid overwriting
+                        userProfileData.role = 'jobseeker';
+                        await setDoc(userRef, { role: 'jobseeker' }, { merge: true });
                     }
-                    
                     setUserProfile(userProfileData);
                 } else {
-                    // New user: create their profile with a default role
                     const newUserProfile: UserProfile = {
-                        uid: currentUser.uid,
-                        email: currentUser.email || '',
-                        name: currentUser.displayName || 'New User',
-                        photoURL: currentUser.photoURL || '',
-                        role: 'jobseeker', // Assign default role
+                        uid: currentUser.uid, email: currentUser.email || '', name: currentUser.displayName || 'New User',
+                        photoURL: currentUser.photoURL || '', role: 'jobseeker',
                     };
                     await setDoc(userRef, newUserProfile);
                     setUserProfile(newUserProfile);
@@ -73,7 +76,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setLoading(false);
         });
-
         return () => unsubscribe();
     }, []);
 
@@ -94,7 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const value = { user, userProfile, loading, signIn, signOut };
+    const value = { user, userProfile, loading, isProfileComplete: isProfileComplete(userProfile), signIn, signOut };
 
     return (
         <AuthContext.Provider value={value}>

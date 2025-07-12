@@ -20,9 +20,9 @@ const JobSeekerView: React.FC = () => {
   const renderSection = () => {
     switch (currentSection) {
       case 'home':
-        return (<><Hero setCurrentSection={setCurrentSection} /><Opportunities /></>);
+        return (<><Hero setCurrentSection={setCurrentSection} /><Opportunities setCurrentSection={setCurrentSection} /></>);
       case 'opportunities':
-        return <Opportunities />;
+        return <Opportunities setCurrentSection={setCurrentSection} />;
       case 'about':
         return <About />;
       case 'team':
@@ -32,7 +32,7 @@ const JobSeekerView: React.FC = () => {
       case 'profile':
         return <Profile />;
       default:
-        return (<><Hero setCurrentSection={setCurrentSection} /><Opportunities /></>);
+        return (<><Hero setCurrentSection={setCurrentSection} /><Opportunities setCurrentSection={setCurrentSection} /></>);
     }
   };
 
@@ -58,7 +58,6 @@ const AppRouter: React.FC = () => {
     );
   }
 
-  // Check the user's role and render the correct component
   if (userProfile?.role === 'admin') {
     return <AdminDashboard />;
   }
