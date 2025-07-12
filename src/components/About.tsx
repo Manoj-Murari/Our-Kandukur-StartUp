@@ -107,33 +107,7 @@ const About: React.FC = () => {
           ))}
         </div>
 
-        {/* Community Info */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white mb-16 card-3d gradient-shift glass-effect">
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div className="flex items-center justify-center space-x-3 bounce-in">
-              <MapPin className="h-8 w-8" />
-              <div>
-                <h3 className="text-xl font-bold">Location</h3>
-                <p>Kandukur, Prakasam District, AP</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center space-x-3">
-              <Calendar className="h-8 w-8" />
-              <div>
-                <h3 className="text-xl font-bold">Established</h3>
-                <p>2023</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center space-x-3">
-              <Users className="h-8 w-8" />
-              <div>
-                <h3 className="text-xl font-bold">Community</h3>
-                <p>2000+ Active Members</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
+       
         {/* Testimonials Section */}
         <div className="mt-16">
           <div className="text-center mb-12">

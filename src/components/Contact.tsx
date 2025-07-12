@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Phone } from 'lucide-react';
 
 const Contact: React.FC = () => {
-  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // FIXED: Add stricter validation for the phone number field
+    if (name === 'phone') {
+      // Remove all non-digit characters
+      const numericValue = value.replace(/\D/g, '');
+      // Take only the first 10 digits
+      const truncatedValue = numericValue.slice(0, 10);
+      setFormData({ ...formData, [name]: truncatedValue });
+    } else {
+      // For all other fields, update as normal
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) {
-      setFeedbackMessage('Please fill out all fields.');
+      setFeedbackMessage('Please fill out all required fields.');
       return;
     }
     setIsSubmitting(true);
@@ -27,7 +39,7 @@ const Contact: React.FC = () => {
         createdAt: serverTimestamp()
       });
       setFeedbackMessage('✅ Thank you! Your message has been sent.');
-      setFormData({ name: '', email: '', message: '' }); // Clear form
+      setFormData({ name: '', email: '', phone: '', message: '' }); // Clear form
     } catch (error) {
       console.error("Error sending message:", error);
       setFeedbackMessage('❌ Sorry, there was an error sending your message.');
@@ -56,6 +68,13 @@ const Contact: React.FC = () => {
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
                 <input type="email" name="email" id="email" value={formData.email} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
+              </div>
+            </div>
+            <div className="mt-6">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone Number (Optional)</label>
+              <div className="relative mt-1">
+                <Phone className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 ml-3" />
+                <input type="tel" name="phone" id="phone" value={formData.phone} onChange={handleChange} className="block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
               </div>
             </div>
             <div className="mt-6">

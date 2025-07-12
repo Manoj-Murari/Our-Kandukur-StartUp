@@ -5,16 +5,8 @@ import { Loader2, Save } from 'lucide-react';
 
 const PostOpportunityForm: React.FC = () => {
   const [formData, setFormData] = useState({
-    title: '',
-    company: '',
-    location: 'Remote',
-    category: 'jobs',
-    status: 'open',
-    stipend: 'Not Disclosed',
-    deadline: '',
-    link: '',
-    description: '',
-    requirements: '',
+    title: '', company: '', location: 'Remote', category: 'jobs', status: 'open',
+    stipend: 'Not Disclosed', deadline: '', link: '', description: '', requirements: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -32,13 +24,22 @@ const PostOpportunityForm: React.FC = () => {
     const requirementsArray = formData.requirements.split(',').map(req => req.trim()).filter(Boolean);
 
     try {
-      await addDoc(collection(db, "opportunities"), {
+      // 1. Add the opportunity document
+      const oppDocRef = await addDoc(collection(db, "opportunities"), {
         ...formData,
         requirements: requirementsArray,
         createdAt: serverTimestamp()
       });
+
+      // 2. FIXED: Add a corresponding notification document
+      await addDoc(collection(db, "notifications"), {
+          type: 'new_opportunity',
+          title: `New ${formData.category}: ${formData.title}`,
+          opportunityId: oppDocRef.id, // Link to the new opportunity
+          createdAt: serverTimestamp()
+      });
+
       setMessage('✅ Success! Opportunity has been posted.');
-      // Reset form
       setFormData({
         title: '', company: '', location: 'Remote', category: 'jobs', status: 'open',
         stipend: 'Not Disclosed', deadline: '', link: '', description: '', requirements: '',
