@@ -5,7 +5,8 @@ import ViewMessages from './ViewMessages';
 import ManageTeam from './ManageTeam';
 import ManageOpportunities from './ManageOpportunities';
 import ManageUsers from './ManageUsers';
-import ManageTestimonials from './ManageTestimonials'; // Import the new component
+import ManageTestimonials from './ManageTestimonials';
+import ManageSettings from './ManageSettings'; // Import the new component
 
 const AdminDashboard: React.FC = () => {
   const { userProfile, signOut } = useAuth();
@@ -18,7 +19,8 @@ const AdminDashboard: React.FC = () => {
       case 'messages': return <ViewMessages />;
       case 'team': return <ManageTeam />;
       case 'users': return <ManageUsers />;
-      case 'testimonials': return <ManageTestimonials />; // New case for testimonials
+      case 'testimonials': return <ManageTestimonials />;
+      case 'settings': return <ManageSettings />; // New case for settings
       default: return null;
     }
   };
@@ -46,14 +48,15 @@ const AdminDashboard: React.FC = () => {
       </header>
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
             <button onClick={() => setActiveTab('opportunities')} className={getTabClassName('opportunities')}>Post Opportunity</button>
             <button onClick={() => setActiveTab('manage-opps')} className={getTabClassName('manage-opps')}>Manage Opportunities</button>
             <button onClick={() => setActiveTab('messages')} className={getTabClassName('messages')}>View Messages</button>
             <button onClick={() => setActiveTab('team')} className={getTabClassName('team')}>Manage Team</button>
             <button onClick={() => setActiveTab('users')} className={getTabClassName('users')}>Manage Users</button>
-            {/* New Tab Button */}
             <button onClick={() => setActiveTab('testimonials')} className={getTabClassName('testimonials')}>Manage Testimonials</button>
+            {/* New Tab Button */}
+            <button onClick={() => setActiveTab('settings')} className={getTabClassName('settings')}>Site Settings</button>
           </nav>
         </div>
         <div>{renderTabContent()}</div>
