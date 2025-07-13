@@ -3,7 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import PostOpportunityForm from './PostOpportunityForm';
 import ViewMessages from './ViewMessages';
 import ManageTeam from './ManageTeam';
-import ManageOpportunities from './ManageOpportunities'; // Import new component
+import ManageOpportunities from './ManageOpportunities';
+import ManageUsers from './ManageUsers';
+import ManageTestimonials from './ManageTestimonials'; // Import the new component
 
 const AdminDashboard: React.FC = () => {
   const { userProfile, signOut } = useAuth();
@@ -12,11 +14,21 @@ const AdminDashboard: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'opportunities': return <PostOpportunityForm />;
-      case 'manage-opps': return <ManageOpportunities />; // New case
+      case 'manage-opps': return <ManageOpportunities />;
       case 'messages': return <ViewMessages />;
       case 'team': return <ManageTeam />;
+      case 'users': return <ManageUsers />;
+      case 'testimonials': return <ManageTestimonials />; // New case for testimonials
       default: return null;
     }
+  };
+
+  const getTabClassName = (tabName: string) => {
+    return `whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+      activeTab === tabName
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`;
   };
 
   return (
@@ -35,11 +47,13 @@ const AdminDashboard: React.FC = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            <button onClick={() => setActiveTab('opportunities')} className={`...`}>Post Opportunity</button>
+            <button onClick={() => setActiveTab('opportunities')} className={getTabClassName('opportunities')}>Post Opportunity</button>
+            <button onClick={() => setActiveTab('manage-opps')} className={getTabClassName('manage-opps')}>Manage Opportunities</button>
+            <button onClick={() => setActiveTab('messages')} className={getTabClassName('messages')}>View Messages</button>
+            <button onClick={() => setActiveTab('team')} className={getTabClassName('team')}>Manage Team</button>
+            <button onClick={() => setActiveTab('users')} className={getTabClassName('users')}>Manage Users</button>
             {/* New Tab Button */}
-            <button onClick={() => setActiveTab('manage-opps')} className={`...`}>Manage Opportunities</button>
-            <button onClick={() => setActiveTab('messages')} className={`...`}>View Messages</button>
-            <button onClick={() => setActiveTab('team')} className={`...`}>Manage Team</button>
+            <button onClick={() => setActiveTab('testimonials')} className={getTabClassName('testimonials')}>Manage Testimonials</button>
           </nav>
         </div>
         <div>{renderTabContent()}</div>
