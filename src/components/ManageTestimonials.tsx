@@ -2,31 +2,38 @@ import React, { useState } from 'react';
 import { useTestimonials, Testimonial } from '../hooks/useTestimonials';
 import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Loader2, Save, Trash2, UserPlus, Star, Edit, X } from 'lucide-react';
+import { Loader2, Save, Trash2, UserPlus, Star, Edit, X, Upload } from 'lucide-react';
 
 // Reusable form for both adding and editing
 const TestimonialForm: React.FC<{
     initialData?: Partial<Testimonial>;
-    onSubmit: (data: Omit<Testimonial, 'id' | 'createdAt'>) => Promise<void>;
+    onSubmit: (data: Omit<Testimonial, 'id' | 'createdAt'>, imageFile: File | null) => Promise<void>;
     onClose?: () => void;
     isSubmitting: boolean;
 }> = ({ initialData = {}, onSubmit, onClose, isSubmitting }) => {
     const [formData, setFormData] = useState({
         name: initialData.name || '',
         role: initialData.role || '',
-        image: initialData.image || '',
         content: initialData.content || '',
         rating: initialData.rating || 5,
     });
+    const [imageFile, setImageFile] = useState<File | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { id, value, type } = e.target;
         setFormData(prev => ({ ...prev, [id]: type === 'number' ? Number(value) : value }));
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setImageFile(e.target.files[0]);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData as Omit<Testimonial, 'id' | 'createdAt'>);
+        // Pass both form text data and the image file to the parent handler
+        onSubmit(formData, imageFile);
     };
 
     return (
@@ -35,7 +42,8 @@ const TestimonialForm: React.FC<{
                 <div><label htmlFor="name" className="block text-sm font-medium">Name</label><input type="text" id="name" value={formData.name} onChange={handleChange} required className="w-full p-2 border rounded-md"/></div>
                 <div><label htmlFor="role" className="block text-sm font-medium">Role / Position</label><input type="text" id="role" value={formData.role} onChange={handleChange} required className="w-full p-2 border rounded-md"/></div>
             </div>
-            <div><label htmlFor="image" className="block text-sm font-medium">Image URL</label><input type="url" id="image" value={formData.image} onChange={handleChange} placeholder="https://example.com/photo.jpg" className="w-full p-2 border rounded-md"/></div>
+            {/* FIXED: Replaced URL input with File input */}
+            <div><label htmlFor="image" className="block text-sm font-medium">Image (Optional)</label><input type="file" id="image" onChange={handleFileChange} accept="image/*" className="w-full p-2 border rounded-md"/></div>
             <div><label htmlFor="content" className="block text-sm font-medium">Testimonial Content</label><textarea id="content" value={formData.content} onChange={handleChange} required rows={4} className="w-full p-2 border rounded-md"></textarea></div>
             <div><label htmlFor="rating" className="block text-sm font-medium">Rating (1-5)</label><select id="rating" value={formData.rating} onChange={handleChange} required className="w-full p-2 border rounded-md"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
             <div className="flex justify-end space-x-4 pt-4">
@@ -56,34 +64,62 @@ const ManageTestimonials: React.FC = () => {
     const [message, setMessage] = useState('');
     const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
 
-    const handleAddSubmit = async (data: Omit<Testimonial, 'id' | 'createdAt'>) => {
+    const uploadImage = async (imageFile: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('teamImage', imageFile); // The PHP script uses 'teamImage' key
+        
+        const uploadResponse = await fetch('https://ourkandukur.com/upload.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const uploadResult = await uploadResponse.json();
+        if (uploadResult.status !== 'success') {
+            throw new Error(uploadResult.message || 'Image upload failed.');
+        }
+        return uploadResult.url;
+    };
+
+    const handleAddSubmit = async (data: Omit<Testimonial, 'id' | 'createdAt'>, imageFile: File | null) => {
         setIsSubmitting(true);
         setMessage('');
         try {
-            await addDoc(collection(db, "testimonials"), { ...data, createdAt: serverTimestamp() });
+            let imageUrl = '';
+            if (imageFile) {
+                imageUrl = await uploadImage(imageFile);
+            } else {
+                imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random&color=fff`;
+            }
+
+            await addDoc(collection(db, "testimonials"), { ...data, imageUrl, createdAt: serverTimestamp() });
             setMessage('✅ Success! Testimonial added.');
             refetch();
-        } catch (err) {
-            console.error("Error adding testimonial:", err);
-            setMessage('❌ Error! Could not add testimonial.');
+        } catch (err: any) {
+            setMessage(`❌ Error! ${err.message}`);
         } finally {
             setIsSubmitting(false);
-            setTimeout(() => setMessage(''), 4000);
+            setTimeout(() => setMessage(''), 5000);
         }
     };
 
-    const handleEditSubmit = async (data: Omit<Testimonial, 'id' | 'createdAt'>) => {
+    const handleEditSubmit = async (data: Omit<Testimonial, 'id' | 'createdAt'>, imageFile: File | null) => {
         if (!editingTestimonial) return;
         setIsSubmitting(true);
         try {
+            let imageUrl = editingTestimonial.image; // Start with the existing image URL
+            if (imageFile) {
+                // If a new file is provided, upload it and get the new URL
+                imageUrl = await uploadImage(imageFile);
+            }
+
             const testimonialRef = doc(db, "testimonials", editingTestimonial.id);
-            await updateDoc(testimonialRef, data);
+            await updateDoc(testimonialRef, { ...data, image: imageUrl }); // Use 'image' field as in the data structure
+            
             alert('Testimonial updated successfully!');
             setEditingTestimonial(null);
             refetch();
-        } catch (err) {
-            console.error("Error updating testimonial:", err);
-            alert("Failed to update testimonial.");
+        } catch (err: any) {
+            alert(`Failed to update testimonial: ${err.message}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -96,7 +132,6 @@ const ManageTestimonials: React.FC = () => {
                 alert('Testimonial deleted successfully.');
                 refetch();
             } catch (err) {
-                console.error("Error deleting testimonial:", err);
                 alert('Failed to delete testimonial.');
             }
         }
@@ -112,9 +147,7 @@ const ManageTestimonials: React.FC = () => {
 
             <div className="bg-white p-8 rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">Current Testimonials</h2>
-                {loading && <Loader2 className="animate-spin"/>}
-                {error && <div className="text-red-600"><AlertCircle className="inline mr-2"/>{error}</div>}
-                {!loading && !error && (
+                {loading ? <Loader2 className="animate-spin"/> : (
                     <div className="space-y-4">
                         {testimonials.map(testimonial => (
                             <div key={testimonial.id} className="flex items-center justify-between p-3 border rounded-md">
@@ -137,7 +170,7 @@ const ManageTestimonials: React.FC = () => {
 
             {editingTestimonial && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full">
+                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold">Edit Testimonial</h2>
                             <button onClick={() => setEditingTestimonial(null)} className="p-2 rounded-full hover:bg-gray-200"><X/></button>

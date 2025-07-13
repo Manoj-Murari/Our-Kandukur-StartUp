@@ -1,86 +1,108 @@
 import React, { useState } from 'react';
-import { useTeamMembers } from '../hooks/useTeamMembers';
-import { collection, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { useTeamMembers, TeamMember } from '../hooks/useTeamMembers';
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Loader2, Save, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, Save, Trash2, UserPlus, Edit, X } from 'lucide-react';
+
+// Reusable form for both adding and editing team members
+const TeamMemberForm: React.FC<{
+    initialData?: Partial<TeamMember>;
+    onSubmit: (data: Omit<TeamMember, 'id' | 'createdAt'>, imageFile: File | null) => Promise<void>;
+    onClose?: () => void;
+    isSubmitting: boolean;
+}> = ({ initialData = {}, onSubmit, onClose, isSubmitting }) => {
+    const [name, setName] = useState(initialData.name || '');
+    const [role, setRole] = useState(initialData.role || 'Mentor');
+    const [socialLink, setSocialLink] = useState(initialData.socialLink || '');
+    const [imageFile, setImageFile] = useState<File | null>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setImageFile(e.target.files[0]);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = { name, role, socialLink };
+        onSubmit(formData, imageFile);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label htmlFor="name" className="block text-sm font-medium">Full Name</label><input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-2 border rounded-md"/></div>
+                <div><label htmlFor="role" className="block text-sm font-medium">Role</label><select id="role" value={role} onChange={(e) => setRole(e.target.value)} required className="w-full p-2 border rounded-md"><option value="Founder">Founder</option><option value="Technical Support Team">Technical Support Team</option><option value="Content Creator Team">Content Creator Team</option><option value="Broadcasting Team">Broadcasting Team</option><option value="Mentor">Mentor</option><option value="Social Media Marketing Team">Social Media Marketing Team</option></select></div>
+            </div>
+            <div><label htmlFor="imageFile" className="block text-sm font-medium">Profile Picture (Optional)</label><input type="file" id="imageFile" onChange={handleFileChange} accept="image/*" className="w-full p-2 border border-gray-300 rounded-md"/></div>
+            <div><label htmlFor="socialLink" className="block text-sm font-medium">Social Media Link</label><input type="url" id="socialLink" value={socialLink} onChange={(e) => setSocialLink(e.target.value)} required placeholder="https://linkedin.com/in/username" className="w-full p-2 border rounded-md"/></div>
+            <div className="flex justify-end space-x-4 pt-4">
+                {onClose && <button type="button" onClick={onClose} className="px-6 py-2 rounded-md bg-gray-200 hover:bg-gray-300">Cancel</button>}
+                <button type="submit" disabled={isSubmitting} className="px-6 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 flex items-center">
+                    {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
+                    {isSubmitting ? 'Saving...' : 'Save Member'}
+                </button>
+            </div>
+        </form>
+    );
+};
+
 
 const ManageTeam: React.FC = () => {
-  const { teamMembers, loading, refetch } = useTeamMembers();
-  
-  // State for the form, including the file
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('Mentor');
-  const [socialLink, setSocialLink] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
+  const { teamMembers, loading, error, refetch } = useTeamMembers();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        setImageFile(e.target.files[0]);
+  const uploadImage = async (imageFile: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('teamImage', imageFile);
+    const uploadResponse = await fetch('https://ourkandukur.com/upload.php', { method: 'POST', body: formData });
+    const uploadResult = await uploadResponse.json();
+    if (uploadResult.status !== 'success') {
+        throw new Error(uploadResult.message || 'Image upload failed.');
     }
+    return uploadResult.url;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !role || !socialLink) {
-        setMessage('Please fill out all fields.');
-        return;
-    }
+  const handleAddSubmit = async (data: Omit<TeamMember, 'id' | 'createdAt'>, imageFile: File | null) => {
     setIsSubmitting(true);
     setMessage('');
-    let imageUrl = '';
-
     try {
-        // Step 1: Handle the image upload to your PHP script
+        let imageUrl = '';
         if (imageFile) {
-            const formData = new FormData();
-            formData.append('teamImage', imageFile);
-
-            // IMPORTANT: This URL points to the PHP script on your live server
-            const uploadResponse = await fetch('https://ourkandukur.com/upload.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const uploadResult = await uploadResponse.json();
-
-            if (uploadResult.status !== 'success') {
-                throw new Error(uploadResult.message || 'Image upload failed.');
-            }
-            imageUrl = uploadResult.url;
+            imageUrl = await uploadImage(imageFile);
         } else {
-            // If no image is selected, generate a default one
-            imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+            imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random&color=fff`;
         }
-
-        // Step 2: Save the data (including the new image URL) to Firestore
-        await addDoc(collection(db, "teamMembers"), {
-            name,
-            role,
-            socialLink,
-            imageUrl,
-            createdAt: serverTimestamp()
-        });
-
+        await addDoc(collection(db, "teamMembers"), { ...data, imageUrl, createdAt: serverTimestamp() });
         setMessage('✅ Success! Team member added.');
-        // Reset form fields
-        setName('');
-        setRole('Mentor');
-        setSocialLink('');
-        setImageFile(null);
-        // Clear the file input visually
-        if (document.getElementById('imageFile') as HTMLInputElement) {
-            (document.getElementById('imageFile') as HTMLInputElement).value = "";
-        }
-        refetch(); // Refresh the list of team members
-    } catch (error: any) {
-        console.error("Error adding team member: ", error);
-        setMessage(`❌ Error! ${error.message}`);
+        refetch();
+    } catch (err: any) {
+        setMessage(`❌ Error! ${err.message}`);
     } finally {
         setIsSubmitting(false);
         setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleEditSubmit = async (data: Omit<TeamMember, 'id' | 'createdAt'>, imageFile: File | null) => {
+    if (!editingMember) return;
+    setIsSubmitting(true);
+    try {
+        let imageUrl = editingMember.imageUrl;
+        if (imageFile) {
+            imageUrl = await uploadImage(imageFile);
+        }
+        const memberRef = doc(db, "teamMembers", editingMember.id);
+        await updateDoc(memberRef, { ...data, imageUrl });
+        alert('Team member updated successfully!');
+        setEditingMember(null);
+        refetch();
+    } catch (err: any) {
+        alert(`Failed to update team member: ${err.message}`);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -100,21 +122,8 @@ const ManageTeam: React.FC = () => {
     <div className="space-y-8">
       <div className="bg-white p-8 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center"><UserPlus className="mr-3"/>Add a New Team Member</h2>
-        <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div><label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label><input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-2 border border-gray-300 rounded-md"/></div>
-                <div><label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label><select id="role" value={role} onChange={(e) => setRole(e.target.value)} required className="w-full p-2 border border-gray-300 rounded-md"><option value="Founder">Founder</option><option value="Technical Support Team">Technical Support Team</option><option value="Content Creator Team">Content Creator Team</option><option value="Broadcasting Team">Broadcasting Team</option><option value="Mentor">Mentor</option><option value="Social Media Marketing Team">Social Media Marketing Team</option></select></div>
-            </div>
-            <div className="mb-4"><label htmlFor="imageFile" className="block text-sm font-medium text-gray-700 mb-1">Profile Picture (Optional)</label><input type="file" id="imageFile" onChange={handleFileChange} accept="image/*" className="w-full p-2 border border-gray-300 rounded-md"/></div>
-            <div className="mb-4"><label htmlFor="socialLink" className="block text-sm font-medium text-gray-700 mb-1">Social Media Link</label><input type="url" id="socialLink" value={socialLink} onChange={(e) => setSocialLink(e.target.value)} required placeholder="https://linkedin.com/in/username" className="w-full p-2 border border-gray-300 rounded-md"/></div>
-            <div className="flex items-center justify-end">
-                {message && <p className="text-sm text-gray-600 mr-4">{message}</p>}
-                <button type="submit" disabled={isSubmitting} className="inline-flex items-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400">
-                    {isSubmitting ? <Loader2 className="animate-spin h-5 w-5 mr-3" /> : <Save className="h-5 w-5 mr-2" />}
-                    {isSubmitting ? 'Saving...' : 'Save Member'}
-                </button>
-            </div>
-        </form>
+        {message && <p className="text-sm text-gray-600 mb-4">{message}</p>}
+        <TeamMemberForm onSubmit={handleAddSubmit} isSubmitting={isSubmitting} />
       </div>
 
       <div className="bg-white p-8 rounded-lg shadow-md">
@@ -124,12 +133,32 @@ const ManageTeam: React.FC = () => {
                 {teamMembers.map(member => (
                     <div key={member.id} className="flex items-center justify-between p-3 border rounded-md">
                         <div className="flex items-center"><img src={member.imageUrl} alt={member.name} className="h-12 w-12 rounded-full mr-4 object-cover"/><div><p className="font-semibold">{member.name}</p><p className="text-sm text-gray-500">{member.role}</p></div></div>
-                        <button onClick={() => handleDelete(member.id)} className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50"><Trash2 className="h-5 w-5"/></button>
+                        <div className="flex items-center space-x-2">
+                            <button onClick={() => setEditingMember(member)} className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100"><Edit className="h-5 w-5"/></button>
+                            <button onClick={() => handleDelete(member.id)} className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100"><Trash2 className="h-5 w-5"/></button>
+                        </div>
                     </div>
                 ))}
             </div>
         )}
       </div>
+
+      {editingMember && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full">
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold">Edit Team Member</h2>
+                      <button onClick={() => setEditingMember(null)} className="p-2 rounded-full hover:bg-gray-200"><X/></button>
+                  </div>
+                  <TeamMemberForm 
+                      initialData={editingMember}
+                      onSubmit={handleEditSubmit}
+                      onClose={() => setEditingMember(null)}
+                      isSubmitting={isSubmitting}
+                  />
+              </div>
+          </div>
+      )}
     </div>
   );
 };
