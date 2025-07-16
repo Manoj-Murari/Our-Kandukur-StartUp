@@ -1,0 +1,45 @@
+# .github/workflows/deploy.yml
+
+name: Deploy to Hostinger
+
+# This action runs on every push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checks out your repository code so the job can access it
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Sets up the Node.js environment to build your project
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Use a version compatible with your project
+          cache: 'npm'
+
+      # 3. Installs all your project's dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. Builds your React app for production
+      - name: Build Project
+        run: npm run build
+
+      # 5. Deploys the built files to your Hostinger server via FTP
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # This is the folder on your Hostinger server where the files should go
+          # For the main domain, it's usually 'public_html'
+          server-dir: public_html/
+          # This is the folder in the workflow that contains your built files
+          local-dir: ./dist/
