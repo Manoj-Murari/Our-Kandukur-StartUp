@@ -3,11 +3,12 @@ import { Calendar, MapPin, IndianRupee, Briefcase, Search, Loader2, AlertCircle,
 import { useOpportunities, Opportunity } from '../hooks/useOpportunities';
 import { useAuth } from '../contexts/AuthContext';
 
-interface OpportunitiesProps {
+interface OpportunitiesPreviewProps {
     setCurrentSection: (section: string) => void;
 }
 
-const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
+const OpportunitiesPreview: React.FC<OpportunitiesPreviewProps> = ({ setCurrentSection }) => {
+    // All state and hooks from the main Opportunities page are now here
     const { opportunities, loading, error, refetch } = useOpportunities();
     const { user, signIn, isProfileComplete } = useAuth();
 
@@ -61,7 +62,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
     };
 
     return (
-        <section id="opportunities" className="py-16 bg-gray-50">
+        <section id="opportunities-preview" className="py-16 bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-bold text-gray-900 mb-4">Latest Opportunities</h2>
@@ -92,7 +93,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={() => setShowFilters(false)}>
                         <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md space-y-6" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-between items-center">
-                                <h3 className="text-xl font-bold text-gray-800">More Filters</h3>
+                                <h3 className="text-xl font-bold text-gray-800">Filters</h3>
                                 <button onClick={() => setShowFilters(false)} className="p-2 rounded-full hover:bg-gray-200"><X className="h-5 w-5"/></button>
                             </div>
                             <div className="space-y-4">
@@ -123,14 +124,12 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
 
                 {!loading && !error && (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {filteredOpportunities.map((opportunity: Opportunity) => {
-                            // UPDATED: Centralized and corrected the closing logic.
+                        {/* UPDATED: Only show the first 3 results */}
+                        {filteredOpportunities.slice(0, 3).map((opportunity: Opportunity) => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
                             const deadlineDate = new Date(opportunity.deadline);
                             deadlineDate.setHours(0, 0, 0, 0);
-                            
-                            // An opportunity is closed if today is AFTER the deadline day, or if its status is manually set to 'closed'.
                             const isClosed = today > deadlineDate || opportunity.status === 'closed';
 
                             return (
@@ -143,7 +142,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
                                     <div className="p-6 flex flex-col h-full">
                                         <div className="flex items-center justify-between mb-4 pt-4">
                                             <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{opportunity.type.charAt(0).toUpperCase() + opportunity.type.slice(1)}</span>
-                                            {/* The badge now uses the same `isClosed` variable */}
                                             {isClosed 
                                                 ? <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Closed</span>
                                                 : <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">Open</span>
@@ -159,7 +157,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
                                         </div>
                                         <p className="text-gray-600 text-sm mb-4 flex-grow">{opportunity.description}</p>
                                         <div className="flex flex-wrap gap-2 mb-4">{opportunity.requirements.map((req, index) => (<span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">{req}</span>))}</div>
-                                        {/* The button now uses the same `isClosed` variable */}
                                         <button onClick={() => handleApplyClick(opportunity, isClosed)} className={`w-full mt-auto py-2 px-4 rounded-lg font-medium transition-all ${!isClosed ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`} disabled={isClosed}>{!isClosed ? 'Apply Now' : 'Application Closed'}</button>
                                     </div>
                                 </div>
@@ -168,9 +165,19 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ setCurrentSection }) => {
                     </div>
                 )}
                 {!loading && !error && filteredOpportunities.length === 0 && (<div className="text-center py-12"><p className="text-gray-500 text-lg">No opportunities found matching your criteria.</p></div>)}
+                
+                {/* See All Opportunities Button */}
+                <div className="mt-16 text-right">
+                    <button 
+                        onClick={() => setCurrentSection('opportunities')}
+                        className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
+                    >
+                        See All Opportunities
+                    </button>
+                </div>
             </div>
         </section>
     );
 };
 
-export default Opportunities;
+export default OpportunitiesPreview;
